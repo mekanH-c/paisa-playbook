@@ -103,7 +103,7 @@ type Result = {
 }
 
 /** Full liability for one regime. Deductions only count in the old regime. */
-function compute(regime: Regime, gross: number, deductions: number, tds: number): Result {
+function compute(regime: Regime, gross: number, deductions: number): Result {
   const allowed = Math.min(deductions, regime.maxDeductions)
   const taxable = Math.max(0, gross - regime.stdDeduction - allowed)
   let base = slabTax(taxable, regime.bands)
@@ -148,12 +148,11 @@ export function TaxLab() {
   const [stcg, setStcg] = useState(0)
   const [ltcg, setLtcg] = useState(0)
 
-  const newRes = useMemo(() => compute(NEW, ctc, deductions, tds), [ctc, deductions, tds])
-  const oldRes = useMemo(() => compute(OLD, ctc, deductions, tds), [ctc, deductions, tds])
+  const newRes = useMemo(() => compute(NEW, ctc, deductions), [ctc, deductions])
+  const oldRes = useMemo(() => compute(OLD, ctc, deductions), [ctc, deductions])
 
   const cheaper = newRes.total <= oldRes.total ? 'new' : 'old'
   const winner = cheaper === 'new' ? newRes : oldRes
-  const loser = cheaper === 'new' ? oldRes : newRes
   const saving = Math.abs(newRes.total - oldRes.total)
 
   // Equity gains are taxed on their own special rates, never as ordinary income.

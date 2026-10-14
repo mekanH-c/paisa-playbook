@@ -85,13 +85,13 @@ export const searchGlossary = (query: string, limit = 100): GlossaryEntry[] => {
 
     for (const term of terms) {
       const inTerm = tKey.indexOf(term)
-      const inMeaning = mKey.indexOf(term)
-      if (inTerm < 0 && inMeaning < 0) {
+      const inMeaning = mKey.split(' ').some((w) => w === term || w.startsWith(term))
+      if (inTerm < 0 && !inMeaning) {
         score = 0
         break
       }
       if (inTerm >= 0) score += tKey === term ? 60 : tKey.startsWith(term) ? 40 : 20
-      if (inMeaning >= 0) score += 8
+      if (inMeaning) score += 8
     }
 
     if (score > 0) scored.push({ e, score })

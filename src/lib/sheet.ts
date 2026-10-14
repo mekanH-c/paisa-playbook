@@ -171,7 +171,6 @@ export function expandRange(sheet: Sheet, range: [string, string], seen: Set<str
     for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++) {
       const addr = `${numToCol(c)}${r}`
       if (seen.has(addr)) continue
-      seen.add(addr)
       out.push(evaluateCell(sheet, addr, seen))
     }
   }
@@ -281,6 +280,7 @@ const FNS: Record<string, (args: unknown[]) => CellValue> = {
 
 /** Evaluate a cell's raw content. Plain numbers and text pass through; "=" means formula. */
 export function evaluateCell(sheet: Sheet, addr: string, seen = new Set<string>()): CellValue {
+  if (seen.has(addr)) return { error: '#CIRCULAR' }
   const raw = (sheet[addr] ?? '').trim()
   if (raw === '') return ''
   if (!raw.startsWith('=')) {
@@ -288,6 +288,8 @@ export function evaluateCell(sheet: Sheet, addr: string, seen = new Set<string>(
     if (raw !== '' && Number.isFinite(n) && /^[-+0-9₹,.\s]+$/.test(raw)) return n
     return raw
   }
+  const nextSeen = new Set(seen)
+  nextSeen.add(addr)
   try {
     const tokens = tokenize(raw.slice(1))
     let pos = 0
@@ -355,8 +357,8 @@ export function evaluateCell(sheet: Sheet, addr: string, seen = new Set<string>(
       if (!tok) throw new Error('Unexpected end of formula')
       if (tok.t === 'num') return tok.v
       if (tok.t === 'str') return tok.v
-      if (tok.t === 'ref') return readRef(sheet, tok.v, seen)
-      if (tok.t === 'range') return flatten(expandRange(sheet, tok.v, seen))[0] ?? ''
+      if (tok.t === 'ref') return readRef(sheet, tok.v, nextSeen)
+      if (tok.t === 'range') return flatten(expandRange(sheet, tok.v, nextSeen))[0] ?? ''
       if (tok.t === 'lp') {
         const v = parseExpr()
         if (peek()?.t === 'rp') eat()
@@ -389,7 +391,7 @@ export function evaluateCell(sheet: Sheet, addr: string, seen = new Set<string>(
       const tok = peek()
       if (tok?.t === 'range') {
         eat()
-        return expandRange(sheet, tok.v, new Set(seen))
+        return expandRange(sheet, tok.v, new Set(nextSeen))
       }
       return parseExpr()
     }
